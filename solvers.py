@@ -20,9 +20,9 @@ def create_solver(opt):
     return instance
 
 
-
 class Solver(object):
     """docstring for Solver"""
+
     def __init__(self):
         super(Solver, self).__init__()
 
@@ -34,6 +34,8 @@ class Solver(object):
     def run_solver(self):
         if self.opt.mode == "train":
             self.train_networks()
+        elif self.opt.mode == "generate":
+            self.generate(self.opt)
         else:
             self.test_networks(self.opt)
 
@@ -81,19 +83,19 @@ class Solver(object):
                 last_print_step_t = time.time()
                 # print loss info to command line
                 info_dict = {'epoch': epoch, 'epoch_len': self.epoch_len,
-                            'epoch_steps': idx * self.opt.batch_size, 'epoch_steps_len': len(self.train_dataset),
-                            'step_time': avg_step_t, 'cur_lr': self.cur_lr,
-                            'log_path': os.path.join(self.opt.ckpt_dir, self.opt.log_file),
-                            'losses': cur_losses
-                            }
+                             'epoch_steps': idx * self.opt.batch_size, 'epoch_steps_len': len(self.train_dataset),
+                             'step_time': avg_step_t, 'cur_lr': self.cur_lr,
+                             'log_path': os.path.join(self.opt.ckpt_dir, self.opt.log_file),
+                             'losses': cur_losses
+                             }
                 self.visual.print_losses_info(info_dict)
-            
+
             # plot loss map to visdom
             if self.train_total_steps % self.opt.plot_losses_freq == 0 and self.visual.display_id > 0:
                 cur_losses = self.train_model.get_latest_losses()
                 epoch_steps = idx * self.opt.batch_size
                 self.visual.display_current_losses(epoch - 1, epoch_steps / len(self.train_dataset), cur_losses)
-            
+
             # display image on visdom
             if self.train_total_steps % self.opt.sample_img_freq == 0 and self.visual.display_id > 0:
                 cur_vis = self.train_model.get_latest_visuals()
@@ -120,7 +122,8 @@ class Solver(object):
                     cur_tar_aus = cur_alpha * batch['tar_aus'] + (1 - cur_alpha) * batch['src_aus']
                     # print(batch['src_aus'])
                     # print(cur_tar_aus)
-                    test_batch = {'src_img': batch['src_img'], 'tar_aus': cur_tar_aus, 'src_aus':batch['src_aus'], 'tar_img':batch['tar_img']}
+                    test_batch = {'src_img': batch['src_img'], 'tar_aus': cur_tar_aus, 'src_aus': batch['src_aus'],
+                                  'tar_img': batch['tar_img']}
 
                     self.test_model.feed_batch(test_batch)
                     self.test_model.forward()
@@ -147,7 +150,8 @@ class Solver(object):
                 # concate src, inters, tar faces
                 concate_img = np.array(self.visual.numpy2im(faces_list[0][idx]))
                 for face_idx in range(1, len(faces_list)):
-                    concate_img = np.concatenate((concate_img, np.array(self.visual.numpy2im(faces_list[face_idx][idx]))), axis=1)
+                    concate_img = np.concatenate(
+                        (concate_img, np.array(self.visual.numpy2im(faces_list[face_idx][idx]))), axis=1)
                 concate_img = Image.fromarray(concate_img)
                 # save image
                 saved_path = os.path.join(self.opt.results, "%s_%s.jpg" % (src_name, tar_name))
@@ -155,8 +159,30 @@ class Solver(object):
 
             print("[Success] Saved images to %s" % saved_path)
 
+    def generate(self, opt):
+        self.init_test_setting(opt)
+        self.generate_ops()
 
+    def generate_ops(self):
+        for batch_idx, batch in enumerate(self.test_dataset):
+            with torch.no_grad():
+                test_batch = {'src_img': batch['src_img'], 'tar_aus': batch['tar_aus']}
 
+                self.test_model.feed_batch(test_batch)
+                self.test_model.forward()
 
+                cur_gen_faces = self.test_model.fake_img.cpu().float().numpy()
 
+                self.generate_save_imgs(cur_gen_faces, batch['tar_path'])
 
+    def generate_save_imgs(self, faces_list, paths_list):
+        print(faces_list.shape)
+        for idx in range(len(paths_list)):
+            face = np.array(self.visual.numpy2im(faces_list[idx]))
+            path = paths_list[idx]
+
+            output_img = Image.fromarray(face)
+
+            output_img.save(path)
+
+            print("[Success] Saved image to %s" % path)

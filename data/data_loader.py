@@ -6,7 +6,9 @@ import numpy as np
 import pickle
 import torchvision.transforms as transforms
 
+from .base_dataset import BaseDataset
 from .celeba import CelebADataset
+from .generate import GenerateDataset
 
 
 def create_dataloader(opt):
@@ -24,8 +26,11 @@ class DataLoader:
         loaded_dataset = os.path.basename(self.opt.data_root.strip('/')).lower()
         if 'celeba' in loaded_dataset or 'emotion' in loaded_dataset:
             dataset = CelebADataset()
+        elif 'generate' in loaded_dataset:
+            dataset = GenerateDataset()
         else:
-            dataset = BaseDataset()
+            #dataset = BaseDataset()
+            dataset = CelebADataset()
         dataset.initialize(self.opt)
         return dataset
 

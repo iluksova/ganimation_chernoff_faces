@@ -86,6 +86,11 @@ class Options(object):
         parser.add_argument('--plot_losses_freq', type=int, default=20000, help='plot log every plot_freq step.')
         parser.add_argument('--sample_img_freq', type=int, default=2000, help='draw image every sample_img_freq step.')
         parser.add_argument('--save_epoch_freq', type=int, default=2, help='save checkpoint every save_epoch_freq epoch.')
+
+        # generate options
+        parser.add_argument('--aus_csv', type=str, default="aus.csv", help='Csv with AUs to generate.')
+        parser.add_argument('--input_img_path', type=str, help='Image used for generation of the target AUs.')
+        parser.add_argument('--output_path', type=str, help='Directory to generate ouput.')
         
         return parser
 
@@ -102,7 +107,7 @@ class Options(object):
                 os.makedirs(opt.ckpt_dir)
 
         # if test, disable visdom, update results path
-        if opt.mode == "test":
+        if opt.mode == "test" or opt.mode == "generate":
             opt.visdom_display_id = 0
             opt.results = os.path.join(opt.results, "%s_%s_%s" % (dataset_name, opt.model, opt.load_epoch))
             if not os.path.exists(opt.results):
